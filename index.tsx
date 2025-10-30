@@ -124,6 +124,7 @@ const App = () => {
     const cumulativeTranscriptRef = useRef('');
     const aiRef = useRef<GoogleGenAI | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const debounceTimeoutRef = useRef<number | null>(null);
 
 
     // --- Constants ---
@@ -184,13 +185,20 @@ const App = () => {
                 if (cumulativeTranscriptRef.current) {
                     cumulativeTranscriptRef.current += ' ';
                 }
-                cumulativeTranscriptRef.current += finalTranscriptPart;
+                cumulativeTranscriptRef.current += finalTranscriptPart.trim();
             }
 
-            setRecognizedText(cumulativeTranscriptRef.current + interimTranscript);
+            setRecognizedText(cumulativeTranscriptRef.current + ' ' + interimTranscript);
             
             if (finalTranscriptPart.trim()) {
-                handleTranslation(cumulativeTranscriptRef.current, targetLanguage);
+                // Debounce translation to avoid hitting API rate limits
+                if (debounceTimeoutRef.current) {
+                    clearTimeout(debounceTimeoutRef.current);
+                }
+                debounceTimeoutRef.current = window.setTimeout(() => {
+                    handleTranslation(cumulativeTranscriptRef.current, targetLanguage);
+                }, 1200); // Wait 1.2 seconds after user stops talking
+
                 setQuiz(null); 
                 setSelectedQuizAnswer(null);
                 setIsQuizCorrect(false);
@@ -207,6 +215,13 @@ const App = () => {
         };
 
         recognitionRef.current = recognition;
+        
+        // Cleanup function to clear timeout on component unmount or re-render
+        return () => {
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
+            }
+        };
     }, [targetLanguage]);
 
     // --- Core Functions ---
@@ -224,6 +239,9 @@ const App = () => {
         if (isListening) {
             recognitionRef.current?.stop();
             setIsListening(false);
+        }
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
         }
         cumulativeTranscriptRef.current = '';
         setRecognizedText('');
@@ -256,6 +274,10 @@ const App = () => {
     const playSuccessSound = () => {
         if (!audioContextRef.current) return;
         const audioCtx = audioContextRef.current;
+        // Check if context is suspended (due to browser policy) and resume if needed
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
 
@@ -297,6 +319,9 @@ const App = () => {
                     audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
                 }
                 const audioContext = audioContextRef.current;
+                 if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
                 const audioBuffer = await decodeAudioData(
                     decode(base64Audio),
                     audioContext,
@@ -454,9 +479,14 @@ const App = () => {
                                         );
                                     })}
                                 </div>
-                                {selectedQuizAnswer && (
-                                    <p className={`quiz-feedback ${selectedQuizAnswer === quiz.answer ? 'correct' : 'incorrect'}`}>
-                                        {selectedQuizAnswer === quiz.answer ? 'Correct!' : `Try again! The correct answer is ${quiz.answer}.`}
+                                {selectedQuizAnswer && !isQuizCorrect && (
+                                    <p className={'quiz-feedback incorrect'}>
+                                        Try again!
+                                    </p>
+                                )}
+                                {isQuizCorrect && (
+                                    <p className={'quiz-feedback correct'}>
+                                        Correct! Well done!
                                     </p>
                                 )}
                             </div>
