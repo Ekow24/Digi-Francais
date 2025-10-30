@@ -53,6 +53,12 @@ declare global {
         AudioContext: typeof AudioContext;
         webkitAudioContext: typeof AudioContext;
     }
+    // Fix: Add type definition for import.meta.env to resolve TypeScript error.
+    interface ImportMeta {
+        readonly env: {
+            readonly VITE_API_KEY: string;
+        };
+    }
 }
 
 // --- Audio Utility Functions ---
@@ -144,10 +150,10 @@ const App = () => {
 
     // --- Initialization ---
     useEffect(() => {
-        // Fix: Adhere to Gemini API coding guidelines by using process.env.API_KEY. This also resolves the TypeScript error regarding 'import.meta.env'.
-        const apiKey = process.env.API_KEY;
+        // Fix: Use import.meta.env.VITE_API_KEY for Vercel/Vite deployments.
+        const apiKey = import.meta.env.VITE_API_KEY;
         if (!apiKey) {
-            setError("API key not found. Please ensure the API_KEY environment variable is set.");
+            setError("API key not found. Please set the VITE_API_KEY environment variable in your deployment settings.");
             return;
         }
         aiRef.current = new GoogleGenAI({ apiKey });
@@ -197,7 +203,7 @@ const App = () => {
                 }
                 debounceTimeoutRef.current = window.setTimeout(() => {
                     handleTranslation(cumulativeTranscriptRef.current, targetLanguage);
-                }, 1200); // Wait 1.2 seconds after user stops talking
+                }, 2000); // Wait 2 seconds after user stops talking
 
                 setQuiz(null); 
                 setSelectedQuizAnswer(null);
@@ -264,7 +270,7 @@ const App = () => {
             });
             setTranslatedText(response.text);
         } catch (e: any) {
-            setError(`Translation failed: ${e.message}`);
+            setError(`Translation failed: ${JSON.stringify(e.message || e)}`);
             console.error(e);
         } finally {
             setIsLoading(false);
@@ -336,7 +342,7 @@ const App = () => {
                 throw new Error("No audio data received from API.");
             }
         } catch (e: any) {
-            setError(`Audio generation failed: ${e.message}`);
+            setError(`Audio generation failed: ${JSON.stringify(e.message || e)}`);
             console.error(e);
         } finally {
             setIsGeneratingAudio(false);
@@ -367,7 +373,7 @@ const App = () => {
             const quizData = JSON.parse(response.text);
             setQuiz(quizData);
         } catch (e: any) {
-            setError(`Quiz generation failed: ${e.message}`);
+            setError(`Quiz generation failed: ${JSON.stringify(e.message || e)}`);
             console.error(e);
         } finally {
             setIsLoading(false);
