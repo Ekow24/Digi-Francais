@@ -1,0 +1,6 @@
+{
+  "description": "Digi Français: An AI-powered app for speech recognition, translation, and language learning quizzes.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
