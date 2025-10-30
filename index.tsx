@@ -143,8 +143,14 @@ const App = () => {
 
     // --- Initialization ---
     useEffect(() => {
-        // Fix: Use process.env.API_KEY as per the guidelines and assume it is available. This also resolves the TypeScript error.
-        aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        // Fix: Adhere to Gemini API coding guidelines by using process.env.API_KEY. This also resolves the TypeScript error regarding 'import.meta.env'.
+        const apiKey = process.env.API_KEY;
+        if (!apiKey) {
+            setError("API key not found. Please ensure the API_KEY environment variable is set.");
+            return;
+        }
+        aiRef.current = new GoogleGenAI({ apiKey });
+
          // Ensure AudioContext is initialized on first user interaction (or here for simplicity)
         if (!audioContextRef.current) {
             audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
