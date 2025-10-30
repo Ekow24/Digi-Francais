@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 
-// Fix: Add type definitions for the Web Speech API to resolve TypeScript errors.
 // --- Type Definitions for Speech Recognition API ---
 interface SpeechRecognitionEvent extends Event {
     readonly resultIndex: number;
@@ -53,7 +52,7 @@ declare global {
         AudioContext: typeof AudioContext;
         webkitAudioContext: typeof AudioContext;
     }
-    // Fix: Add type definition for import.meta.env to resolve TypeScript error.
+    // Add type definition for import.meta.env for Vercel/Vite
     interface ImportMeta {
         readonly env: {
             readonly VITE_API_KEY: string;
@@ -150,20 +149,18 @@ const App = () => {
 
     // --- Initialization ---
     useEffect(() => {
-        // Fix: Use import.meta.env.VITE_API_KEY for Vercel/Vite deployments.
+        // FIX 1: Use `import.meta.env.VITE_API_KEY` for Vercel deployment.
         const apiKey = import.meta.env.VITE_API_KEY;
         if (!apiKey) {
-            setError("API key not found. Please set the VITE_API_KEY environment variable in your deployment settings.");
+            setError("API key not found. Please ensure the VITE_API_KEY environment variable is set correctly in your Vercel project settings.");
             return;
         }
         aiRef.current = new GoogleGenAI({ apiKey });
 
-         // Ensure AudioContext is initialized on first user interaction (or here for simplicity)
         if (!audioContextRef.current) {
             audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        // Initialize Speech Recognition
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             setError("Speech recognition is not supported in this browser.");
@@ -197,7 +194,7 @@ const App = () => {
             setRecognizedText(cumulativeTranscriptRef.current + ' ' + interimTranscript);
             
             if (finalTranscriptPart.trim()) {
-                // Debounce translation to avoid hitting API rate limits
+                // FIX 2: Add debounce to prevent API rate limit errors for translation/quiz.
                 if (debounceTimeoutRef.current) {
                     clearTimeout(debounceTimeoutRef.current);
                 }
@@ -222,7 +219,6 @@ const App = () => {
 
         recognitionRef.current = recognition;
         
-        // Cleanup function to clear timeout on component unmount or re-render
         return () => {
             if (debounceTimeoutRef.current) {
                 clearTimeout(debounceTimeoutRef.current);
@@ -280,7 +276,6 @@ const App = () => {
     const playSuccessSound = () => {
         if (!audioContextRef.current) return;
         const audioCtx = audioContextRef.current;
-        // Check if context is suspended (due to browser policy) and resume if needed
         if (audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
@@ -381,7 +376,7 @@ const App = () => {
     };
 
     const handleQuizAnswer = (option: string) => {
-        if (isQuizCorrect) return; // Don't do anything if already answered correctly
+        if (isQuizCorrect) return;
         
         setSelectedQuizAnswer(option);
 
@@ -760,7 +755,7 @@ const STYLES = `
         border: 1px solid var(--border-color);
         border-radius: 8px;
         background-color: transparent;
-        color: var(--text-color); /* Fix: Ensure text is visible */
+        color: var(--text-color);
         cursor: pointer;
         transition: background-color 0.2s ease, border-color 0.2s ease;
         font-family: inherit;
