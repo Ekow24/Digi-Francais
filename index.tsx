@@ -1,6 +1,8 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
+// FIX: Import Modality for Text-to-Speech API.
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 
 // --- Type Definitions for Speech Recognition API ---
@@ -51,44 +53,41 @@ declare global {
         webkitSpeechRecognition: typeof webkitSpeechRecognition;
         AudioContext: typeof AudioContext;
         webkitAudioContext: typeof AudioContext;
-    }
-    // Add type definition for import.meta.env for Vercel/Vite
-    interface ImportMeta {
-        readonly env: {
-            readonly VITE_API_KEY: string;
-        };
+        puter: any; // For Puter.js
     }
 }
 
-// --- Audio Utility Functions ---
+// FIX: Added helper functions to decode and play audio from Gemini TTS API.
+// --- Audio Decoding Utilities for Gemini TTS ---
 function decode(base64: string) {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
 }
 
 async function decodeAudioData(
-  data: Uint8Array,
-  ctx: AudioContext,
-  sampleRate: number,
-  numChannels: number,
+    data: Uint8Array,
+    ctx: AudioContext,
+    sampleRate: number,
+    numChannels: number,
 ): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
-  const frameCount = dataInt16.length / numChannels;
-  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+    const dataInt16 = new Int16Array(data.buffer);
+    const frameCount = dataInt16.length / numChannels;
+    const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
-  for (let channel = 0; channel < numChannels; channel++) {
-    const channelData = buffer.getChannelData(channel);
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    for (let channel = 0; channel < numChannels; channel++) {
+        const channelData = buffer.getChannelData(channel);
+        for (let i = 0; i < frameCount; i++) {
+            channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+        }
     }
-  }
-  return buffer;
+    return buffer;
 }
+
 
 // --- Confetti Utility ---
 const triggerConfetti = () => {
@@ -126,7 +125,7 @@ const App = () => {
 
     // --- Refs ---
     const recognitionRef = useRef<SpeechRecognition | null>(null);
-    const cumulativeTranscriptRef = useRef('');
+    const finalTranscriptRef = useRef('');
     const aiRef = useRef<GoogleGenAI | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const debounceTimeoutRef = useRef<number | null>(null);
@@ -149,10 +148,10 @@ const App = () => {
 
     // --- Initialization ---
     useEffect(() => {
-        // FIX 1: Use `import.meta.env.VITE_API_KEY` for Vercel deployment.
-        const apiKey = import.meta.env.VITE_API_KEY;
+        // Use `process.env.API_KEY` for this environment.
+        const apiKey = process.env.API_KEY;
         if (!apiKey) {
-            setError("API key not found. Please ensure the VITE_API_KEY environment variable is set correctly in your Vercel project settings.");
+            setError("API key not found. Please make sure it is configured correctly.");
             return;
         }
         aiRef.current = new GoogleGenAI({ apiKey });
@@ -161,46 +160,40 @@ const App = () => {
             audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
+        const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognitionApi) {
             setError("Speech recognition is not supported in this browser.");
             return;
         }
-        const recognition = new SpeechRecognition();
+        const recognition = new SpeechRecognitionApi();
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
 
         recognition.onresult = (event) => {
             let interimTranscript = '';
-            let finalTranscriptPart = '';
+            let currentFinalTranscript = finalTranscriptRef.current;
 
             for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    finalTranscriptPart += transcript;
+                    currentFinalTranscript += event.results[i][0].transcript + ' ';
                 } else {
-                    interimTranscript += transcript;
+                    interimTranscript += event.results[i][0].transcript;
                 }
             }
             
-            if (finalTranscriptPart.trim()) {
-                if (cumulativeTranscriptRef.current) {
-                    cumulativeTranscriptRef.current += ' ';
-                }
-                cumulativeTranscriptRef.current += finalTranscriptPart.trim();
-            }
+            setRecognizedText(currentFinalTranscript + interimTranscript);
+            
+            const finalTranscriptTrimmed = currentFinalTranscript.trim();
+            if (finalTranscriptTrimmed && finalTranscriptTrimmed !== finalTranscriptRef.current) {
+                finalTranscriptRef.current = finalTranscriptTrimmed;
 
-            setRecognizedText(cumulativeTranscriptRef.current + ' ' + interimTranscript);
-            
-            if (finalTranscriptPart.trim()) {
-                // FIX 2: Add debounce to prevent API rate limit errors for translation/quiz.
                 if (debounceTimeoutRef.current) {
                     clearTimeout(debounceTimeoutRef.current);
                 }
                 debounceTimeoutRef.current = window.setTimeout(() => {
-                    handleTranslation(cumulativeTranscriptRef.current, targetLanguage);
-                }, 2000); // Wait 2 seconds after user stops talking
+                    handleTranslation(finalTranscriptTrimmed, targetLanguage);
+                }, 2000);
 
                 setQuiz(null); 
                 setSelectedQuizAnswer(null);
@@ -223,6 +216,7 @@ const App = () => {
             if (debounceTimeoutRef.current) {
                 clearTimeout(debounceTimeoutRef.current);
             }
+            recognitionRef.current?.stop();
         };
     }, [targetLanguage]);
 
@@ -232,6 +226,7 @@ const App = () => {
             recognitionRef.current?.stop();
             setIsListening(false);
         } else {
+            handleRefresh(); // Clear state before starting new session
             recognitionRef.current?.start();
             setIsListening(true);
         }
@@ -245,7 +240,7 @@ const App = () => {
         if (debounceTimeoutRef.current) {
             clearTimeout(debounceTimeoutRef.current);
         }
-        cumulativeTranscriptRef.current = '';
+        finalTranscriptRef.current = '';
         setRecognizedText('');
         setTranslatedText('');
         setError(null);
@@ -294,10 +289,12 @@ const App = () => {
         oscillator.stop(audioCtx.currentTime + 0.5);
     };
 
+    // FIX: Replaced third-party TTS with Gemini's Text-to-Speech API.
     const handlePlayTranslationAudio = async () => {
-        if (!translatedText || !aiRef.current || isGeneratingAudio) return;
+        if (!translatedText || isGeneratingAudio || !aiRef.current || !audioContextRef.current) return;
         setIsGeneratingAudio(true);
         setError(null);
+
         try {
             const response = await aiRef.current.models.generateContent({
                 model: "gemini-2.5-flash-preview-tts",
@@ -313,31 +310,28 @@ const App = () => {
             });
 
             const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
             if (base64Audio) {
-                 if (!audioContextRef.current || audioContextRef.current.sampleRate !== 24000) {
-                    if (audioContextRef.current) await audioContextRef.current.close();
-                    audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+                const audioCtx = audioContextRef.current;
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
                 }
-                const audioContext = audioContextRef.current;
-                 if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
+
                 const audioBuffer = await decodeAudioData(
                     decode(base64Audio),
-                    audioContext,
-                    24000,
-                    1
+                    audioCtx,
+                    24000, // Gemini TTS sample rate
+                    1,     // Mono channel
                 );
-                const source = audioContext.createBufferSource();
+
+                const source = audioCtx.createBufferSource();
                 source.buffer = audioBuffer;
-                source.connect(audioContext.destination);
+                source.connect(audioCtx.destination);
                 source.start();
             } else {
-                throw new Error("No audio data received from API.");
+                setError("Audio generation failed: No audio data received.");
             }
         } catch (e: any) {
-            setError(`Audio generation failed: ${JSON.stringify(e.message || e)}`);
+            setError(`Audio generation failed: ${e.message ? e.message : JSON.stringify(e)}`);
             console.error(e);
         } finally {
             setIsGeneratingAudio(false);
