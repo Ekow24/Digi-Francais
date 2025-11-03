@@ -1,18 +1,21 @@
 # Digi Français  
 ### Your AI-Powered Language Learning Assistant  
 
-Digi Français is an interactive AI web app that helps users learn new languages through speech recognition, real-time translation, text-to-speech playback, and AI-generated vocabulary quizzes — all powered by Google’s **Gemini 2.5 Flash** models.  
+Digi Français is an interactive AI web app that helps users learn new languages through speech recognition, real-time translation, text-to-speech playback, and AI-generated vocabulary quizzes, all powered by Google’s **Gemini 2.5 Flash** models.  
 
 ---
 
+**Available at:** https://digi-francais-h79u5h9l9-ekow24s-projects.vercel.app
+
+---
 ## Features  
 
--  **Voice Input (Speech Recognition)** – Speak in English and let the app automatically transcribe your words.  
--  **AI Translation** – Instantly translate spoken sentences into your chosen language (French, Spanish, German, Italian, or Japanese).  
--  **Text-to-Speech Playback** – Hear the translation spoken aloud with natural Gemini TTS voices.  
--  **Interactive Quizzes** – Test your understanding through AI-generated multiple-choice questions based on your translation.  
--  **Gamified Feedback** – Celebrate correct answers with confetti and sound effects!  
--  **Powered by Google Gemini 2.5** – Uses `@google/genai` for translation, TTS, and quiz generation.  
+-  **Voice Input (Speech Recognition):** Speak in English and let the app automatically transcribe your words.  
+-  **AI Translation:** Instantly translate spoken sentences into your chosen language (French, Spanish, German, Italian, or Japanese).  
+-  **Text-to-Speech Playback:** Hear the translation spoken aloud with natural Gemini TTS voices.  
+-  **Interactive Quizzes:** Test your understanding through AI-generated multiple-choice questions based on your translation.  
+-  **Gamified Feedback:** Celebrate correct answers with confetti and sound effects!  
+-  **Powered by Google Gemini 2.5:** Uses `@google/genai` for translation, TTS, and quiz generation.  
 
 ---
 
@@ -32,8 +35,8 @@ Digi Français is an interactive AI web app that helps users learn new languages
 
 ### Clone the repository  
 ```bash
-git clone https://github.com/yourusername/digi-francais.git
-cd digi-francais
+git clone https://github.com/Ekow24/Digi-Francais.git
+cd Digi-Francais
 ```
 
 ### Install dependencies  
